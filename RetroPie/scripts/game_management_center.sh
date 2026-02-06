@@ -24,36 +24,11 @@ FREE_PERCENT=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
 # =============================
 # FUNCTIONS
 # =============================
-
 get_free_space() {
     df -h / | awk 'NR==2 {print $4}'
 }
 
 get_total_games() {
-	for SYSTEM in "$ROMS"/*; do
-        [ ! -d "$SYSTEM" ] && continue
-        SYS_NAME=$(basename "$SYSTEM")
-
-        [[ "$SYS_NAME" == "bios" ]] && continue
-        [[ "$SYS_NAME" == "ports" ]] && continue
-
-        for ITEM in "$SYSTEM"/*; do
-            [ ! -e "$ITEM" ] && continue
-
-            NAME=$(basename "$ITEM")
-
-            if [ -d "$ITEM" ]; then
-                TYPE="FOLDER"
-            elif [ -L "$ITEM" ]; then
-                TYPE="SYMLINK"
-            else
-                TYPE="FILE"
-            fi
-
-            echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
-        done
-    done
-	
     [ -f "$GAME_LIST" ] && wc -l < "$GAME_LIST" || echo 0
 }
 
