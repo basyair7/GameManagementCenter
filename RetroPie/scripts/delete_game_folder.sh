@@ -36,14 +36,17 @@ while true; do
             NAME=$(basename "$ITEM")
 
             if [ -d "$ITEM" ]; then
-                TYPE="FOLDER"
-            elif [ -L "$ITEM" ]; then
-                TYPE="SYMLINK"
-            else
-                TYPE="FILE"
-            fi
-
-            echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+				if find "$ITEM" -type f -print -quit | grep -q .; then
+					TYPE="FOLDER"
+					echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+				fi
+			elif [ -L "$ITEM" ]; then
+				TYPE="SYMLINK"
+				echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+			else
+				TYPE="FILE"
+				echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+			fi
         done
     done
 

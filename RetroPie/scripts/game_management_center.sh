@@ -17,6 +17,7 @@ DELETE_SCRIPT="$BASE_DIR/delete_game_folder.sh"
 MEMORY_SCRIPT="$BASE_DIR/pcsx_memory_manager.sh"
 
 GAME_LIST="/tmp/game_list.txt"
+EXTENSIONS=("nes" "sfc" "smc" "gb" "gbc" "gba" "gen" "md" "sms" "iso" "bin" "cue" "pbp" "n64" "z64" "v64" "zip")
 FREE_PERCENT=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
 
 [ ! -x "$WHIPTAIL" ] && exit 1
@@ -24,12 +25,31 @@ FREE_PERCENT=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
 # =============================
 # FUNCTIONS
 # =============================
-get_free_space() {
-    df -h / | awk 'NR==2 {print $4}'
+build_game_list() {
+    > "$GAME_LIST"
+    TOTAL=0
+
+    for SYSTEM in /home/pi/RetroPie/roms/*; do
+        [ ! -d "$SYSTEM" ] && continue
+        SYS_NAME=$(basename "$SYSTEM")
+
+        [[ "$SYS_NAME" == "bios" ]] && continue
+        [[ "$SYS_NAME" == "ports" ]] && continue
+
+        for GAME in "$SYSTEM"/*; do
+            [ ! -d "$GAME" ] && continue
+            GAME_NAME=$(basename "$GAME")
+
+            if find "$GAME" -type f | read; then
+                echo "$SYS_NAME|$GAME_NAME|FOLDER|$GAME" >> "$GAME_LIST"
+                TOTAL=$((TOTAL + 1))
+            fi
+        done
+    done
 }
 
-get_total_games() {
-    [ -f "$GAME_LIST" ] && wc -l < "$GAME_LIST" || echo 0
+get_free_space() {
+    df -h / | awk 'NR==2 {print $4}'
 }
 
 run_script() {
@@ -49,8 +69,11 @@ run_script() {
 # =============================
 while true; do
 
+build_game_list
 FREE_SPACE=$(get_free_space)
-TOTAL_GAMES=$(get_total_games)
+
+TOTAL_GAMES="$TOTAL"
+[ "$TOTAL" -eq 0 ] && TOTAL_GAMES="No games found."
 
 CHOICE=$(
 $WHIPTAIL --title "🎮 Game Management Center" \
