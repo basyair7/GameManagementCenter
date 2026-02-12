@@ -34,9 +34,10 @@ chmod +x *.sh
 mkdir /home/pi/RetroPie/scripts
 mv *.sh /home/pi/RetroPie/scripts/
 
-chmod +x GameManagementCenter.sh
-mv GameManagementCenter.sh /home/pi/RetroPie/retropiemenu/
-/home/pi/RetroPie/retropiemenu/GameManagementCenter.sh
+chmod +x "Game Management Center.sh"
+mv "Game Management Center.sh" /home/pi/RetroPie/retropiemenu/
+
+reboot
 ```
 
 ------------------------------------------------------------------------
