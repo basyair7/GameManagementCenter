@@ -1,13 +1,13 @@
 #!/bin/bash
 # ==================================================
-# Game Management Center (DIALOG VERSION)
+# Game Management Center
 # ==================================================
 
 # =============================
 # ENV
 # =============================
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-DIALOG=/usr/bin/dialog
+WHIPTAIL=/usr/bin/whiptail
 
 BASE_DIR="/home/pi/RetroPie/scripts"
 
@@ -17,9 +17,10 @@ DELETE_SCRIPT="$BASE_DIR/delete_game_folder.sh"
 MEMORY_SCRIPT="$BASE_DIR/pcsx_memory_manager.sh"
 
 GAME_LIST="/tmp/game_list.txt"
+EXTENSIONS=("nes" "sfc" "smc" "gb" "gbc" "gba" "gen" "md" "sms" "iso" "bin" "cue" "pbp" "n64" "z64" "v64" "zip")
 FREE_PERCENT=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
 
-[ ! -x "$DIALOG" ] && exit 1
+[ ! -x "$WHIPTAIL" ] && exit 1
 
 # =============================
 # FUNCTIONS
@@ -55,13 +56,11 @@ run_script() {
     SCRIPT="$1"
     MSG="$2"
 
-    if [ ! -x "$SCRIPT" ]; then
-        $DIALOG --clear --title "Error" \
-        --msgbox "$MSG not found!" 7 45
+    [ -x "$SCRIPT" ] || {
+        $WHIPTAIL --msgbox "$MSG not found!" 8 45
         return
-    fi
+    }
 
-    clear
     bash "$SCRIPT"
 }
 
@@ -70,52 +69,48 @@ run_script() {
 # =============================
 while true; do
 
-    build_game_list
-    FREE_SPACE=$(get_free_space)
+build_game_list
+FREE_SPACE=$(get_free_space)
 
-    TOTAL_GAMES="$TOTAL"
-    [ "$TOTAL" -eq 0 ] && TOTAL_GAMES="No games found"
+TOTAL_GAMES="$TOTAL"
+[ "$TOTAL" -eq 0 ] && TOTAL_GAMES="No games found."
 
-    CHOICE=$(
-    $DIALOG --clear \
-    --backtitle "RetroPie Add-on Module" \
-    --title "🎮 Game Management Center" \
-    --menu "System Status
+CHOICE=$(
+$WHIPTAIL --title "🎮 Game Management Center" \
+--menu "System Status
 
 Free Storage : $FREE_SPACE ($FREE_PERCENT%)
-Total Games  : $TOTAL_GAMES
+Total Games : $TOTAL_GAMES
 
-Select an action:" \
-    20 70 8 \
-    1 "Insert Game from USB" \
-    2 "Copy Game to USB" \
-    3 "Delete Game" \
-    4 "PSX Memory Manager" \
-    5 "Exit" \
-    3>&1 1>&2 2>&3
-    )
+Select an action:" 22 70 10 \
+1 "Insert Game from USB" \
+2 "Copy Game to USB" \
+3 "Delete Game" \
+4 "PSX Memory Manager" \
+5 "Exit" \
+3>&1 1>&2 2>&3
+)
 
-    [ -z "$CHOICE" ] && break
+[ -z "$CHOICE" ] && exit 0
 
-    case "$CHOICE" in
-        1)
-            run_script "$INSERT_SCRIPT" "Insert game script"
-            ;;
-        2)
-            run_script "$COPY_SCRIPT" "Copy game script"
-            ;;
-        3)
-            run_script "$DELETE_SCRIPT" "Delete game script"
-            ;;
-        4)
-            run_script "$MEMORY_SCRIPT" "PSX Memory Manager"
-            ;;
-        5)
-            break
-            ;;
-    esac
+case "$CHOICE" in
+    1)
+        run_script "$INSERT_SCRIPT" "Insert game script"
+        ;;
+    2)
+        run_script "$COPY_SCRIPT" "Copy game script"
+        ;;
+    3)
+        run_script "$DELETE_SCRIPT" "Delete game script"
+        ;;
+    4)
+        run_script "$MEMORY_SCRIPT" "PSX Memory Manager"
+        ;;
+    5)
+        break
+        ;;
+esac
 
 done
 
-clear
 exit 0

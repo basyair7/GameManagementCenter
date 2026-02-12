@@ -41,7 +41,7 @@ select_game() {
     [ "$IDX" -eq 1 ] && exit 0
 
     SEL=$(
-        $DIALOG --stdout \
+        $DIALOG --stdout --backtitle "Game Management Center" \
         --title "PCSX Memory Manager" \
         --menu "Select Game:" 18 60 10 \
         "${MENU[@]}"

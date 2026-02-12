@@ -1,18 +1,14 @@
 #!/bin/bash
-# insert_game_folder.sh
-# USB Game Import (DIALOG VERSION)
+#insert_game_folder.sh
 
 # =============================
 # CONFIG
 # =============================
-DIALOG=/usr/bin/dialog
 USB_ROOT="/media"
 SOURCE="RetroPieOS"
 TARGET="/home/pi/RetroPie/roms"
 MIN_FREE=5
 USER_PI="pi"
-
-command -v "$DIALOG" >/dev/null 2>&1 || exit 1
 
 # =============================
 # SAFE USB UNMOUNT FUNCTION
@@ -34,41 +30,73 @@ safe_unmount() {
 }
 
 # =============================
-# CHECK READ-ONLY
+# ENSURE USB RW
 # =============================
+ensure_rw() {
+    MOUNT_DIR="$1"
+
+    mount | grep " $MOUNT_DIR " | grep -q "(ro," || return 0
+
+    DEV=$(lsblk -o MOUNTPOINT,NAME -nr | awk -v m="$MOUNT_DIR" '$1==m {print "/dev/"$2}')
+    [ -z "$DEV" ] && return 1
+
+    mount -o remount,rw "$DEV" "$MOUNT_DIR" 2>/dev/null
+}
+
 check_ro() {
     MOUNT_DIR="$1"
 
     if mount | grep " $MOUNT_DIR " | grep -q "(ro,"; then
-        $DIALOG --clear --backtitle "Game Management Center" \
-        --title "Insert New Game" \
-        --msgbox "USB flash drive is READ-ONLY.
+        whiptail --title "Insert New Game" \
+          --msgbox "USB flash drive is READ-ONLY.
 
 Possible causes:
 • Unsafe removal
 • File system error
 
-Please run fsck or reformat the USB." 13 60
+Please run fsck or reformat the USB." 12 60
         return 1
     fi
     return 0
 }
 
 # =============================
+# SYSTEM FOLDERS
+# =============================
+SYSTEMS=(
+  amstradcpc atari800 atari2600 atari5200 atari7800 atarilynx
+  channelf coleco fba fds gamegear gb gba gbc
+  mastersystem megadrive msx n64 neogeo nes
+  ngp ngpc pcengine psp psx sega32x segacd
+  sg-1000 snes vectrex zxspectrum
+)
+
+declare -A SYSTEMS_WITH_SUBDIRS=(
+  ["arcade"]="mame2003"
+  ["mame-libretro"]="mame2003"
+)
+
+MAME_SUBDIRS=(cfg ctrlr diff hi memcard nvram)
+
+# =============================
+# CHECK WHIPTAIL
+# =============================
+command -v whiptail >/dev/null 2>&1 || exit 1
+
+# =============================
 # STORAGE CHECK
 # =============================
 FREE=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
 if [ "$FREE" -le "$MIN_FREE" ]; then
-    $DIALOG --clear --title "Insert New Game" \
-    --msgbox "Free storage too low: ${FREE}%" 7 45
-    clear
+    whiptail --title "Insert New Game" --msgbox "Free storage too low: ${FREE}%" 8 40
     exit 0
 fi
 
 # =============================
-# USB DETECTION
+# USB DETECTION (STABLE)
 # =============================
 USB_FOUND=""
+
 for DIR in /media/* /media/*/*; do
     mountpoint -q "$DIR" || continue
     USB_FOUND="$DIR"
@@ -76,12 +104,14 @@ for DIR in /media/* /media/*/*; do
 done
 
 if [ -z "$USB_FOUND" ]; then
-    $DIALOG --clear --title "Insert New Game" \
-    --msgbox "USB flash drive not detected." 7 45
-    clear
+    whiptail --title "Insert New Game" --msgbox "USB flash drive not detected." 8 45
     exit 0
 fi
 
+# =============================
+# ENSURE USB RW
+# =============================
+ensure_rw "$USB_FOUND"
 check_ro "$USB_FOUND" || exit 1
 
 RETROPIE_USB="$USB_FOUND/$SOURCE"
@@ -92,15 +122,22 @@ RETROPIE_USB="$USB_FOUND/$SOURCE"
 if [ ! -d "$RETROPIE_USB" ]; then
     mkdir -p "$RETROPIE_USB"
 
-    $DIALOG --clear --backtitle "Game Management Center" \
-    --title "USB Structure Created" \
-    --msgbox "RetroPieOS folder created on USB.
+    for SYS in "${SYSTEMS[@]}"; do
+        mkdir -p "$RETROPIE_USB/$SYS"
+    done
+
+    for SYS in "${!SYSTEMS_WITH_SUBDIRS[@]}"; do
+        for DIR in "${MAME_SUBDIRS[@]}"; do
+            mkdir -p "$RETROPIE_USB/$SYS/${SYSTEMS_WITH_SUBDIRS[$SYS]}/$DIR"
+        done
+    done
+
+    whiptail --title "Insert New Game" --msgbox "RetroPieOS folder created on USB.
 
 Copy ROMs into:
-RetroPieOS/<system>/" 10 60
+RetroPieOS/<system>/" 12 60
 
     safe_unmount "$USB_FOUND"
-    clear
     exit 0
 fi
 
@@ -127,7 +164,7 @@ COUNT=0
 # =============================
 # COPY PROCESS
 # =============================
-(
+{
 for SYS in "$RETROPIE_USB"/*; do
     [ -d "$SYS" ] || continue
 
@@ -149,26 +186,17 @@ for SYS in "$RETROPIE_USB"/*; do
         fi
 
         COUNT=$((COUNT + 1))
-        PERCENT=$((COUNT * 100 / TOTAL))
-
-        echo "$PERCENT"
-        echo "XXX"
-        echo "Importing games from USB...
-
-⚠ DO NOT remove USB
-⚠ DO NOT power off system
-
-Progress : $COUNT / $TOTAL games
---------------------------------
-$STATUS : $SYS_NAME / $GAME_NAME"
-        echo "XXX"
-
+        echo $((COUNT * 100 / TOTAL))
+        echo "# $STATUS : $SYS_NAME / $GAME_NAME"
     done
 done
-) | $DIALOG --clear \
-    --backtitle "Game Management Center" \
-    --title "Import Progress" \
-    --gauge "Preparing import..." 15 70 0
+} | whiptail --title "Insert New Game" \
+   --gauge "Importing games from USB flash drive...
+
+⚠ DO NOT remove the USB flash drive
+⚠ DO NOT power off the system
+
+Please wait until the process is complete." 13 60 0
 
 # =============================
 # FINISH
@@ -179,12 +207,9 @@ safe_unmount "$USB_FOUND"
 
 [ "$ES_WAS_RUNNING" -eq 1 ] && sudo systemctl start emulationstation
 
-$DIALOG --clear --backtitle "Game Management Center" \
---title "Import Completed" \
---msgbox "Game import completed successfully.
+whiptail --title "Insert New Game" --msgbox "Game import completed.
 
 USB safely unmounted.
-You may now remove the device." 10 60
+You may now remove the USB device." 11 60
 
-clear
 exit 0
