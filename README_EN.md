@@ -30,9 +30,14 @@ terminal or file manager.
 ``` bash
 git clone https://github.com/basyair7/GameManagementCenter.git
 cd GameManagementCenter
+cd RetroPie/scripts
 chmod +x *.sh
+mkdir /home/pi/RetroPie/scripts
 mv *.sh /home/pi/RetroPie/scripts/
-/home/pi/RetroPie/scripts/GameManagementCenter.sh
+
+chmod +x GameManagementCenter.sh
+mv GameManagementCenter.sh /home/pi/RetroPie/retropiemenu/
+/home/pi/RetroPie/retropiemenu/GameManagementCenter.sh
 ```
 
 ------------------------------------------------------------------------
