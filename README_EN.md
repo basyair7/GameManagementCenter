@@ -29,8 +29,7 @@ terminal or file manager.
 
 ``` bash
 git clone https://github.com/basyair7/GameManagementCenter.git
-cd GameManagementCenter
-cd RetroPie/scripts
+cd GameManagementCenter/RetroPie/scripts
 chmod +x *.sh
 mkdir /home/pi/RetroPie/scripts
 mv *.sh /home/pi/RetroPie/scripts/
