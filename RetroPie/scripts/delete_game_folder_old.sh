@@ -1,29 +1,28 @@
 #!/bin/bash
-# delete_folder_game.sh
-# Delete selected game (DIALOG VERSION)
+#delete_folder_game.sh
 
 # =============================
-# ENV
+# ENV FIX
 # =============================
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-DIALOG=/usr/bin/dialog
+WHIPTAIL=/usr/bin/whiptail
 USER_PI="pi"
 
 ROMS="/home/pi/RetroPie/roms"
 TMP_LIST="/tmp/game_list.txt"
 
-[ ! -x "$DIALOG" ] && exit 1
+[ ! -x "$WHIPTAIL" ] && exit 1
 
 # =============================
 # MAIN LOOP
 # =============================
 while true; do
 
-    > "$TMP_LIST"
-
     # =============================
     # BUILD GAME LIST
     # =============================
+    > "$TMP_LIST"
+
     for SYSTEM in "$ROMS"/*; do
         [ ! -d "$SYSTEM" ] && continue
         SYS_NAME=$(basename "$SYSTEM")
@@ -37,26 +36,23 @@ while true; do
             NAME=$(basename "$ITEM")
 
             if [ -d "$ITEM" ]; then
-                # Only folder with files inside
-                if find "$ITEM" -type f -print -quit | grep -q .; then
-                    TYPE="FOLDER"
-                    echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
-                fi
-            elif [ -L "$ITEM" ]; then
-                TYPE="SYMLINK"
-                echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
-            else
-                TYPE="FILE"
-                echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
-            fi
+				if find "$ITEM" -type f -print -quit | grep -q .; then
+					TYPE="FOLDER"
+					echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+				fi
+			elif [ -L "$ITEM" ]; then
+				TYPE="SYMLINK"
+				echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+			else
+				TYPE="FILE"
+				echo "$SYS_NAME|$NAME|$TYPE|$ITEM" >> "$TMP_LIST"
+			fi
         done
     done
 
     TOTAL=$(wc -l < "$TMP_LIST")
-
     if [ "$TOTAL" -eq 0 ]; then
-        $DIALOG --clear --msgbox "No games found." 7 40
-        clear
+        $WHIPTAIL --msgbox "No games found." 8 40
         exit 0
     fi
 
@@ -71,15 +67,17 @@ while true; do
         INDEX=$((INDEX + 1))
     done < "$TMP_LIST"
 
+    # =============================
+    # SELECT ITEM
+    # =============================
     CHOICE=$(
-    $DIALOG --clear --backtitle "Game Management Center" \
-    --title "Delete Game" \
-    --menu "Select a game or folder to delete:" \
-    20 75 12 \
-    "${MENU_ITEMS[@]}" \
-    3>&1 1>&2 2>&3
+    $WHIPTAIL --title "Delete Game" \
+      --menu "Select a game or folder to delete:" 20 75 12 \
+      "${MENU_ITEMS[@]}" \
+      3>&1 1>&2 2>&3
     )
 
+    # Cancel / ESC → keluar
     [ -z "$CHOICE" ] && break
 
     LINE=$(sed -n "${CHOICE}p" "$TMP_LIST")
@@ -88,40 +86,31 @@ while true; do
     # =============================
     # CONFIRM
     # =============================
-    $DIALOG --clear --backtitle "Game Management Center" \
-    --title "⚠ Confirm Deletion ⚠" \
-    --yesno \
-"System      : $SYS
-Name        : $NAME
-Type        : $TYPE
+    $WHIPTAIL --yesno \
+"System : $SYS
+Name   : $NAME
+Type   : $TYPE
 
-⚠ THIS ACTION CANNOT BE UNDONE ⚠
-
-Delete this item permanently?" 15 70
+⚠ THIS CANNOT BE UNDONE ⚠
+Delete this item?" 15 60
 
     [ $? -ne 0 ] && continue
 
     # =============================
     # DELETE
     # =============================
-    if [ -e "$GAME_PATH" ]; then
-        if [ "$TYPE" = "FOLDER" ]; then
-            sudo -u "$USER_PI" rm -rf -- "$GAME_PATH"
-        else
-            sudo -u "$USER_PI" rm -f -- "$GAME_PATH"
-        fi
+    if [ "$TYPE" = "FOLDER" ]; then
+        sudo -u "$USER_PI" rm -rf -- "$GAME_PATH"
+    else
+        sudo -u "$USER_PI" rm -f -- "$GAME_PATH"
     fi
 
     # Remove gamelist cache
     GAMELIST="$ROMS/$SYS/gamelist.xml"
     [ -f "$GAMELIST" ] && sudo -u "$USER_PI" rm -f "$GAMELIST"
 
-    $DIALOG --clear --msgbox \
-"Deleted successfully.
-
-System cache refreshed." 8 50
+    $WHIPTAIL --msgbox "Deleted successfully." 8 40
 
 done
 
-clear
 exit 0

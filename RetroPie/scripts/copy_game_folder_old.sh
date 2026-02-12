@@ -1,18 +1,18 @@
 #!/bin/bash
 # copy_game_folder.sh
-# Copy selected game folder from RetroPie to USB flash drive (DIALOG VERSION)
+# Copy selected game folder from RetroPie to USB flash drive
 
 # =============================
 # ENV
 # =============================
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-DIALOG=/usr/bin/dialog
+WHIPTAIL=/usr/bin/whiptail
 USER_PI="pi"
 ROMS="/home/pi/RetroPie/roms"
 USB_ROOT="/media"
 USB_FOLDER="RetroPieOS"
 
-[ ! -x "$DIALOG" ] && exit 1
+[ ! -x "$WHIPTAIL" ] && exit 1
 
 TMP_LIST="/tmp/game_list.txt"
 
@@ -27,9 +27,7 @@ for DIR in /media/* /media/*/*; do
 done
 
 if [ -z "$USB_FOUND" ]; then
-    $DIALOG --clear --title "Copy Game" \
-    --msgbox "USB flash drive not detected." 7 50
-    clear
+    $WHIPTAIL --title "Copy Game" --msgbox "USB flash drive not detected." 8 50
     exit 1
 fi
 
@@ -40,10 +38,8 @@ USB_PATH="$USB_FOUND/$USB_FOLDER"
 
 if [ ! -d "$USB_PATH" ]; then
     CHOICE=$(
-    $DIALOG --clear --backtitle "Game Management Center" \
-    --title "Copy Game to USB" \
-    --menu "RetroPieOS folder not found.\n\nChoose destination:" \
-    15 60 5 \
+    $WHIPTAIL --title "Copy Game to USB" \
+    --menu "RetroPieOS folder not found on USB.\nChoose destination:" 15 65 6 \
     1 "Create RetroPieOS folder (recommended)" \
     2 "Use USB root directly" \
     3 "Cancel" \
@@ -51,9 +47,15 @@ if [ ! -d "$USB_PATH" ]; then
     )
 
     case "$CHOICE" in
-        1) mkdir -p "$USB_PATH" ;;
-        2) USB_PATH="$USB_FOUND" ;;
-        *) clear; exit 0 ;;
+        1)
+            mkdir -p "$USB_PATH"
+            ;;
+        2)
+            USB_PATH="$USB_FOUND"
+            ;;
+        *)
+            exit 0
+            ;;
     esac
 fi
 
@@ -61,7 +63,9 @@ fi
 # MAIN LOOP
 # =============================
 while true; do
-
+    # =============================
+    # BUILD GAME LIST
+    # =============================
     > "$TMP_LIST"
 
     for SYSTEM in "$ROMS"/*; do
@@ -90,11 +94,13 @@ while true; do
 
     TOTAL=$(wc -l < "$TMP_LIST")
     if [ "$TOTAL" -eq 0 ]; then
-        $DIALOG --clear --msgbox "No games found." 7 40
-        clear
+        $WHIPTAIL --msgbox "No games found." 8 40
         exit 0
     fi
 
+    # =============================
+    # BUILD MENU
+    # =============================
     MENU_ITEMS=()
     INDEX=1
 
@@ -103,13 +109,14 @@ while true; do
         INDEX=$((INDEX + 1))
     done < "$TMP_LIST"
 
+    # =============================
+    # SELECT ITEM
+    # =============================
     CHOICE=$(
-    $DIALOG --clear --backtitle "Game Management Center" \
-    --title "Copy Game to USB" \
-    --menu "Select a game or folder to copy:" \
-    20 75 12 \
-    "${MENU_ITEMS[@]}" \
-    3>&1 1>&2 2>&3
+    $WHIPTAIL --title "Copy Game to USB" \
+      --menu "Select a game or folder to copy:" 20 75 12 \
+      "${MENU_ITEMS[@]}" \
+      3>&1 1>&2 2>&3
     )
 
     [ -z "$CHOICE" ] && break
@@ -119,24 +126,26 @@ while true; do
 
     DEST_DIR="$USB_PATH/$SYS/$NAME"
 
-    $DIALOG --clear --yesno \
-"System      : $SYS
-Name        : $NAME
-Type        : $TYPE
+    # =============================
+    # CONFIRM
+    # =============================
+    $WHIPTAIL --yesno \
+"System : $SYS
+Name   : $NAME
+Type   : $TYPE
 
-Destination :
+Destination:
 $DEST_DIR
 
-Copy this item to USB?" 15 70
-
+Copy this item to USB?" 15 65
     [ $? -ne 0 ] && continue
 
     mkdir -p "$USB_PATH/$SYS"
 
     # =============================
-    # COPY WITH GAUGE
+    # COPY WITH PROGRESS
     # =============================
-    (
+    {
         if [ -d "$GAME_PATH" ]; then
             TOTAL_FILES=$(find "$GAME_PATH" -type f | wc -l)
             COUNT=0
@@ -148,32 +157,28 @@ Copy this item to USB?" 15 70
                 cp -f "$FILE" "$DEST_DIR/$REL_PATH"
                 COUNT=$((COUNT + 1))
                 PERCENT=$((COUNT * 100 / TOTAL_FILES))
-
                 echo $PERCENT
-                echo "XXX"
-                echo "Copying:"
-                echo "$REL_PATH"
-                echo "XXX"
+                echo "# Copying: $REL_PATH"
             done
         else
             cp -f "$GAME_PATH" "$USB_PATH/$SYS/"
             echo 100
+            echo "# Copied file: $NAME"
         fi
-    ) | $DIALOG --clear \
-        --backtitle "Game Management Center" \
-        --title "Copy Progress" \
-        --gauge "Copying files to USB...\n\n⚠ DO NOT remove USB\n⚠ DO NOT power off system" \
-        12 70 0
+    } | $WHIPTAIL --gauge "Copying files to USB...
+
+⚠ DO NOT remove the USB flash drive
+⚠ DO NOT power off the system" 13 65 0
 
     sync
     sleep 1
 
-    $DIALOG --clear --msgbox \
-"Copied successfully to:
+    $WHIPTAIL --msgbox "Copied successfully to:\n$DEST_DIR" 9 60
 
-$DEST_DIR" 10 60
-
-    $DIALOG --yesno "Copy another game?" 7 40
+    # =============================
+    # ASK CONTINUE
+    # =============================
+    $WHIPTAIL --yesno "Copy another game?" 8 40
     [ $? -ne 0 ] && break
 done
 
@@ -182,7 +187,6 @@ done
 # =============================
 sync
 sleep 2
-
 if command -v udisksctl >/dev/null 2>&1; then
     DEV=$(lsblk -o MOUNTPOINT,NAME -nr | awk -v m="$USB_FOUND" '$1==m {print "/dev/"$2}')
     [ -n "$DEV" ] && udisksctl unmount -b "$DEV" --no-user-interaction >/dev/null 2>&1
@@ -190,11 +194,9 @@ else
     umount "$USB_FOUND" >/dev/null 2>&1
 fi
 
-$DIALOG --clear --title "Copy Finished" \
---msgbox "Copy process completed.
+$WHIPTAIL --title "Copy Game" --msgbox "Copy process finished.
 
 USB safely unmounted.
-You may now remove the flash drive." 10 60
+You may now remove the flash drive." 11 60
 
-clear
 exit 0
