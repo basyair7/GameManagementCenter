@@ -65,9 +65,9 @@ max_framebuffers=2
 
 [all]
 #dtoverlay=vc4-kms-v3d
-gpu_freq=500
-arm_freq=1350
-over_voltage=4
+#gpu_freq=500
+#arm_freq=1350
+#over_voltage=4
 
 gpu_mem_256=128
 gpu_mem_512=256

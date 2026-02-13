@@ -55,6 +55,24 @@ Please run fsck or reformat the USB." 13 60
 }
 
 # =============================
+# SYSTEM FOLDERS
+# =============================
+SYSTEMS=(
+  amstradcpc atari800 atari2600 atari5200 atari7800 atarilynx
+  channelf coleco fba fds gamegear gb gba gbc
+  mastersystem megadrive msx n64 neogeo nes
+  ngp ngpc pcengine psp psx sega32x segacd
+  sg-1000 snes vectrex zxspectrum
+)
+
+declare -A SYSTEMS_WITH_SUBDIRS=(
+  ["arcade"]="mame2003"
+  ["mame-libretro"]="mame2003"
+)
+
+MAME_SUBDIRS=(cfg ctrlr diff hi memcard nvram)
+
+# =============================
 # STORAGE CHECK
 # =============================
 FREE=$(df / | awk 'NR==2 {print 100-$5}' | tr -d '%')
@@ -91,6 +109,16 @@ RETROPIE_USB="$USB_FOUND/$SOURCE"
 # =============================
 if [ ! -d "$RETROPIE_USB" ]; then
     mkdir -p "$RETROPIE_USB"
+
+    for SYS in "${SYSTEMS[@]}"; do
+        mkdir -p "$RETROPIE_USB/$SYS"
+    done
+
+    for SYS in "${!SYSTEMS_WITH_SUBDIRS[@]}"; do
+        for DIR in "${MAME_SUBDIRS[@]}"; do
+            mkdir -p "$RETROPIE_USB/$SYS/${SYSTEMS_WITH_SUBDIRS[$SYS]}/$DIR"
+        done
+    done
 
     $DIALOG --clear --backtitle "Game Management Center" \
     --title "USB Structure Created" \
